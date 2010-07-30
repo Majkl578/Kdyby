@@ -14,12 +14,6 @@ require LIBS_DIR . '/Nette/loader.php';
 require LIBS_DIR . '/dibi/dibi.php';
 
 
-if( constant("NETTE") !== TRUE ){
-	throw new \Exception("Nette initialization is first!");
-}
-
-
-
 /**
  * Load and configure F-CMS Kdyby
  */
@@ -28,44 +22,28 @@ define('KDYBY', TRUE);
 define('KDYBY_DIR', __DIR__);
 
 
-// Autoloader for classes
+// Step 3: configuring Kdyby
+// 3a) load AutoLoader & some other stuff
 require_once KDYBY_DIR . '/Loaders/KdybyLoader.php';
+require_once KDYBY_DIR . '/shortcuts.php';
 
+// 3b) Register Kdyby autoloader
 \Kdyby\KdybyLoader::getInstance()->register();
 
-
-
-// Step : Override Nette services
+// 3c) Override Nette Application Service
 $locator = Environment::getServiceLocator();
-
-// Nette\Application\Application override
 $locator->addService('Nette\Application\Application', 'Kdyby\Application\Kdyby');
 
-// Nette\Application\IRouter override
-$locator->addService('Nette\Application\IRouter', 'Kdyby\Application\ExtendableRouter');
 
-// Nette\Security\IAuthenticator
-//$locator->addService("Nette\Security\IAuthenticator", "");
-
-
-
-// Step 2: Configure environment
-// 2a) enable Nette\Debug for better exception and error visualisation
+// Step 4: Configure Environment
+// 4a) Enable Nette\Debug for better exception and error visualisation
 Debug::enable();
 Debug::$strictMode = True;
 
-// 2b) load configuration from config.ini file
-Environment::loadConfig();
+// 4b) Load configuration from app/config.ini file
+Environment::loadConfig(APP_DIR.'/config.ini');
 
-// Step 3: Configure application
-// 3a) get and setup a front controller
+
+// Step 6: Application
+// 4a) Get front controller
 $application = Environment::getApplication();
-$application->errorPresenter = 'Error';
-//$application->catchExceptions = TRUE;
-
-
-
-$application->register();
-
-// Step : Run the application!
-$application->run();
