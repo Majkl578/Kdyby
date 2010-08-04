@@ -61,9 +61,6 @@ final class Kdyby extends \Nette\Application\Application
 
 		$this->onLoad($this);
 
-//		$r = \Nette\Environment::getCache('Router');
-//		dump($r['routes']); die();
-
 		parent::run();
 	}
 
