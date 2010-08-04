@@ -10,14 +10,14 @@ use Nette,
 
 
 /**
- * Description of SeoRouter
+ * Description of ExtendableRouter
  *
  * @author Filip Procházka <hosiplan@kdyby.org>
  */
 final class ExtendableRouter extends \Nette\Application\Route implements \ArrayAccess, \Countable, \IteratorAggregate
 {
 
-	/** @var \SplQueue */
+	/** @var array */
 	private $routes = array();
 
 	/** @var array */
@@ -59,7 +59,6 @@ final class ExtendableRouter extends \Nette\Application\Route implements \ArrayA
 			throw new \InvalidArgumentException("You cannot name root route!");
 		}
 
-		//$this->routes = new \SplQueue;
 		$this->name = $name;
 		$this->parent = $parent;
 		$this->flags = $flags;
