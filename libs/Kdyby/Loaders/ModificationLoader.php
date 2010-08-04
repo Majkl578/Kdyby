@@ -11,7 +11,7 @@ namespace Kdyby;
  *
  * @author Filip Procházka <hosiplan@kdyby.org>
  */
-abstract class ModificationLoader extends AddonLoader implements IModificationLoader
+class ModificationLoader extends AddonLoader implements IModificationLoader
 {
 
 	static $modificationLoaders = array();

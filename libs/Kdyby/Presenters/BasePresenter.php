@@ -17,6 +17,9 @@ abstract class BasePresenter extends \Nette\Application\Presenter
 	/** @persistent */
 	public $node;
 
+	/** @persistent */
+	public $lang;
+
 
 	
 

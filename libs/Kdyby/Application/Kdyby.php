@@ -17,6 +17,9 @@ final class Kdyby extends \Nette\Application\Application
 	/** @var array of function(Application $sender); Occurs before the application loads itself */
 	public $onLoad;
 
+	/** @var array of function(Application $sender); Occurs before the application loads itself */
+//	public $onDebugPanels;
+
 	/** @var bool */
 	private $hooked = FALSE;
 
@@ -29,10 +32,19 @@ final class Kdyby extends \Nette\Application\Application
 
 	public function hook()
 	{
+		// hooks aditional services
 		$this->onLoad[] = callback($this, 'hookServices');
 
+		// fills loader with cached data
 		$this->onLoad[] = callback($this, 'hookFillLoader');
 
+		// sets few default extendable routes
+		$this->onLoad[] = callback($this, 'createDefaultRoutes');
+
+		// save new patterns whether becomed avalaible during new modifications loading
+		$this->onShutdown[] = callback($this, 'invalidateRoutes');
+
+		// we can run!
 		$this->hooked = TRUE;
 	}
 
@@ -43,7 +55,14 @@ final class Kdyby extends \Nette\Application\Application
 			throw new \InvalidStateException("Call \$application->hook(); first!");
 		}
 
+//		if( !Environment::isProduction() ){
+//			$this->onDebugPanels($this);
+//		}
+
 		$this->onLoad($this);
+
+//		$r = \Nette\Environment::getCache('Router');
+//		dump($r['routes']); die();
 
 		parent::run();
 	}
@@ -70,6 +89,43 @@ final class Kdyby extends \Nette\Application\Application
 
 		// Nette\Security\IAuthenticator
 		//$locator->addService("Nette\Security\IAuthenticator", "");
+	}
+
+
+	public function invalidateRoutes()
+	{
+		$this->getRouter()->invalidateRoutes();
+	}
+
+
+	public function createDefaultRoutes()
+	{
+		$router = $this->getRouter();
+
+		if( count($router) >= 4 ){
+			return;
+		}
+
+		$router->extend('node', '/<node>/<action>', array(
+		    'action' => Null
+		));
+
+		$router->extend('langNode', '/<language>/<node>/<action>', array(
+		    'language' => 'cz',
+		    'action' => Null
+		));
+
+		$router->extend('section', '/<section>/<node>/<action>', array(
+		    'language' => 'cz',
+		    'action' => Null
+		));
+
+		$router->extend('langSection', '/<language>/<section>/<node>/<action>', array(
+		    'language' => 'cz',
+		    'action' => Null
+		));
+
+		$router->invalidateRoutes();
 	}
 
 

@@ -11,7 +11,7 @@ namespace Kdyby;
  *
  * @author Filip Procházka <hosiplan@kdyby.org>
  */
-abstract class AddonLoader extends Dependencies implements IAddonLoader
+class AddonLoader extends Dependencies implements IAddonLoader
 {
 
 	static $addonLoaders = array();

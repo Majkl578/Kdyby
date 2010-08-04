@@ -3,7 +3,8 @@
 
 namespace Kdyby\Application;
 
-use Nette;
+use Nette,
+	Nette\Application\PresenterRequest;
 
 
 
@@ -26,17 +27,37 @@ class PresenterLoader extends \Nette\Object implements \Nette\Application\IPrese
 	/** @var array */
 	private $cache = array();
 
+	/** @var \DibiRow */
+	static $node = Null;
 
 
 	/**
-	 *
-	 * @param <type> $loader
-	 * @param <type> $baseDir
+	 * @param \Kdyby\KdybyLoader $loader
+	 * @param string $baseDir
 	 */
 	public function __construct(\Kdyby\KdybyLoader $loader, $baseDir)
 	{
 		$this->loader = $loader;
 		$this->baseDir = $baseDir;
+	}
+
+
+	/**
+	 *
+	 * @param Nette\Application\PresenterRequest $request
+	 * @return \DibiRow
+	 */
+	public function getNode(PresenterRequest $request = Null)
+	{
+		if( self::$node == Null OR $request !== Null ){
+			$params = $request->getParams();
+			self::$node = dibi::fetch(
+				'SELECT * FROM %n', $this->table,
+				'WHERE %n = %s', 'id', $params['id']
+			    );
+		}
+
+		return self::$node;
 	}
 
 

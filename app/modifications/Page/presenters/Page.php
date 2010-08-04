@@ -1,7 +1,7 @@
 <?php
 
 
-namespace Kdyby\Modification\Page;
+namespace Kdyby\Modifications\Page;
 
 
 

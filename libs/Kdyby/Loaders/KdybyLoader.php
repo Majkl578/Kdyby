@@ -18,11 +18,19 @@ final class KdybyLoader extends \Nette\Loaders\AutoLoader
 
 	/** @var array */
 	public $list = array(
+		'kdyby\addonloader' => "/Loaders/AddonLoader.php",
+		'kdyby\adminpresenter' => '/Presenters/AdminPresenter.php',
 		'kdyby\application\extendablerouter' => '/Application/Routers/ExtendableRouter.php',
+		'kdyby\application\seorouter' => '/Application/Routers/SeoRouter.php',
 		'kdyby\application\kdyby' => '/Application/Kdyby.php',
 		'kdyby\application\presenterloader' => '/Application/PresenterLoader.php',
 		'kdyby\basepresenter' => '/Presenters/BasePresenter.php',
+		'kdyby\basemodel' => '/Models/BaseModel.php',
+		'kdyby\dependencies' => '/Dependencies.php',
 		'kdyby\hooks' => '/Hooks.php',
+		'kdyby\iaddonloader' => "/Loaders/IAddonLoader.php",
+		'kdyby\imodificationloader' => "/Loaders/IModificationLoader.php",
+		'kdyby\modificationloader' => "/Loaders/ModificationLoader.php",
 	);
 
 	/** @var array */
@@ -51,11 +59,11 @@ final class KdybyLoader extends \Nette\Loaders\AutoLoader
 		$c = $this->getCache();
 
 		if( isset($c['addons']) ){
-			$this->addonsClasses = $c['addons'];
+			$this->addonsClasses = $c['addonsClasses'];
 		}
 
 		if( isset($c['modifications']) ){
-			$this->modificationsClasses = $c['modifications'];
+			$this->modificationsClasses = $c['modificationsClasses'];
 		}
 	}
 
@@ -82,15 +90,49 @@ final class KdybyLoader extends \Nette\Loaders\AutoLoader
 	}
 
 
+	public function verifyLoader($class)
+	{
+		return (false);
+	}
+
+
 	public function loadAddon($addon)
 	{
-		
+		if( !isset($this->addons[$addon->key]) ){
+			list($file, $class) = $this->formatAddonLoader($addon->name, $addon->key);
+			dump(get_defined_vars());
+		}
+
+
 	}
 
 
 	public function loadModification($modification)
 	{
-		
+		if( !isset($this->modifications[$addon->key]) ){
+			list($file, $class) = $this->formatModificationLoader($addon->name, $addon->key);
+			dump(get_defined_vars());
+		}
+
+
+	}
+
+
+	public function formatAddonLoader($name, $key)
+	{
+		return array(
+			'file' => APP_DIR . '/addons/' . String::lower($addon) . '-' . $key . '/loader.php',
+			'class' => '\\Kdyby\\Addons\\' . $key . '\\Loader'
+		);
+	}
+
+
+	public function formatModificationLoader($name, $key)
+	{
+		return array(
+			'file' => APP_DIR . '/modifications/' . String::lower($addon) . '-' . $key . '/loader.php',
+			'class' => '\\Kdyby\\Modifications\\' . $key . '\\Loader'
+		);
 	}
 
 
@@ -100,12 +142,12 @@ final class KdybyLoader extends \Nette\Loaders\AutoLoader
 	 */
 	public function registerAddonClasses(array $classes)
 	{
-		$this->addonClasses += $classes;
+		$this->addonsClasses += $classes;
 
-		if( count($this->addonClasses) != $this->addonsCount ){
-			$this->getCache()->save('addons', $this->addonClasses);
+		if( count($this->addonsClasses) != $this->addonsCount ){
+			$this->getCache()->save('addonClasses', $this->addonsClasses);
 
-			$this->addonsCount = count($this->addons);
+			$this->addonsCount = count($this->addonsClasses);
 		}
 	}
 
@@ -116,12 +158,12 @@ final class KdybyLoader extends \Nette\Loaders\AutoLoader
 	 */
 	public function registerModificationClasses(array $classes)
 	{
-		$this->modificationClasses += $classes;
+		$this->modificationsClasses += $classes;
 
-		if( count($this->modificationClasses) != $this->modificationsCount ){
-			$this->getCache()->save('modifications', $this->modificationClasses);
+		if( count($this->modificationsClasses) != $this->modificationsCount ){
+			$this->getCache()->save('modificationClasses', $this->modificationsClasses);
 
-			$this->modificationsCount = count($this->modifications);
+			$this->modificationsCount = count($this->modificationsClasses);
 		}
 	}
 
@@ -139,11 +181,11 @@ final class KdybyLoader extends \Nette\Loaders\AutoLoader
 			LimitedScope::load(KDYBY_DIR . $this->list[$type]);
 			self::$count++;
 
-		} elseif( isset($this->addons[$type]) ){
+		} elseif( isset($this->addonsClasses[$type]) ){
 			LimitedScope::load(APP_DIR . $this->addonsClasses[$type]);
 			self::$count++;
 
-		} elseif( isset($this->modifications[$type]) ){
+		} elseif( isset($this->modificationsClasses[$type]) ){
 			LimitedScope::load(KDYBY_DIR . $this->modificationsClasses[$type]);
 			self::$count++;
 		}
