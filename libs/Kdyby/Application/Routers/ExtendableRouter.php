@@ -14,31 +14,30 @@ use Nette,
  *
  * @author Filip Procházka <hosiplan@kdyby.org>
  */
-final class ExtendableRouter extends \Nette\Application\Route implements \ArrayAccess, \Countable, \IteratorAggregate
+final class ExtendableRouter extends GradualRoute implements \ArrayAccess, \Countable, \IteratorAggregate
 {
 
-	/** @var array */
-	private $routes = array();
+	/** @var string */
+	const DADDY = 'daddy';
 
 	/** @var array */
-	private $cachedRoutes;
+	protected $routes = array();
+
+	/** @var array */
+	protected $cachedRoutes;
 
 	/** @var int */
-	private $routesDefaultCount = 0;
-	
-	
-	/** @var int */
-	private $flags = 0;
+	protected $routesDefaultCount = 0;
 
 
 	/** @var array */
 	protected static $node = Null;
 
 	/** @var string */
-	private $name;
+	protected $name;
 
 	/** @var string */
-	private $parent;
+	protected $parent;
 
 
 
@@ -49,13 +48,13 @@ final class ExtendableRouter extends \Nette\Application\Route implements \ArrayA
 	 * @param int $flags
 	 * @param SeoRouter $parent
 	 */
-	public function __construct($name = 'daddy', $mask = Null, array $metadata = array(), $flags = 0, ExtendableRouter $parent = Null)
+	public function __construct($name = self::DADDY, $mask = Null, array $metadata = array(), $flags = 0, ExtendableRouter $parent = Null)
 	{
 		if( !String::match($name, "#^[a-zA-Z0-9]+$#") ){
 			throw new \InvalidArgumentException("Route \$name must be alphanumeric string!");
 		}
 
-		if( $parent === Null AND $name !== 'daddy' ){
+		if( $parent === Null AND $name !== self::DADDY ){
 			throw new \InvalidArgumentException("You cannot name root route!");
 		}
 
@@ -63,7 +62,7 @@ final class ExtendableRouter extends \Nette\Application\Route implements \ArrayA
 		$this->parent = $parent;
 		$this->flags = $flags;
 
-		if( $parent === Null ){ // children, daddy will now lookup for some cake, ups i mean cache!
+		if( $parent === Null ){ // children, daddy will now lookup for some cache, ups i mean cake!
 			$c = $this->getCache();
 
 			if( isset($c['routes']) ){
@@ -84,13 +83,15 @@ final class ExtendableRouter extends \Nette\Application\Route implements \ArrayA
 	 * @param array $metadata
 	 * @param int $flags
 	 */
-	public function extend($name, $mask, array $metadata = array(), $flags = 0)
+	public function extend($name, $mask, array $metadata = array())
 	{
-		$mask = $this->getMask() . '/' . ltrim($mask, '/');
+		if( $name === self::DADDY ){
+			throw new \InvalidArgumentException("Name '".self::DADDY."' is reserved!");
+		}
 
-		$metadata = $this->getDefaults() + $metadata;
+		//$mask = $this->getMask() . '/' . ltrim($mask, '/');
 
-		$flags = $this->flags + $flags;
+		//$metadata = $this->getDefaults() + $metadata;
 
 		if( isset($this[$name]) ){
 			$have = 0;
@@ -102,7 +103,7 @@ final class ExtendableRouter extends \Nette\Application\Route implements \ArrayA
 			$name .= ':'.(++$have);
 		}
 
-		$this[$name] = new self($name, $mask, $metadata, $flags, $this);
+		$this[$name] = new self($name, $mask, $metadata, $this->flags, $this);
 	}
 
 
@@ -128,9 +129,25 @@ final class ExtendableRouter extends \Nette\Application\Route implements \ArrayA
 	/**
 	 * @return Nette\Caching\Cache
 	 */
-	private function getCache()
+	protected function getCache()
 	{
 		return Nette\Environment::getCache("Router");
+	}
+
+
+	protected function getGradual(Nette\Web\IHttpRequest $httpRequest)
+	{
+		if( count(self::$node['routeLeafs']) == 0 ){
+			return Null;
+		}
+
+		$leaf = array_shift(self::$node['routeLeafs']);
+
+		if( isset($this[$leaf]) ){
+			return $this[$leaf]->match($httpRequest);
+		}
+
+		return Null;
 	}
 
 
@@ -140,49 +157,65 @@ final class ExtendableRouter extends \Nette\Application\Route implements \ArrayA
 	 */
 	public function match(Nette\Web\IHttpRequest $httpRequest)
 	{
-		if( count($this) > 0 ){
-			if( self::$node !== Null ){
-				return $route[array_shift(self::$node['route'])]->match($httpRequest);
+		$childrenParams = array();
+
+		if( count($this) > 0 ){ // this is where daddy orders children to go on backyard have some fun!
+			$gradualRequest = Null;
+
+			if( self::$node !== Null AND count(self::$node['routeLeafs'])>0 ){ // children's play
+				$gradualRequest = $this->getGradual($httpRequest);
+
+			} elseif( $this->parent !== Null AND $this->parent->getName() === self::DADDY ) {
+				foreach ($this->routes as $route) {
+					if( $gradualRequest = $route->match($httpRequest) ){
+					    break;
+					}
+				}
 			}
 
-			foreach ($this->routes as $route) {
-				$appRequest = $route->match($httpRequest);
-				if ($appRequest !== NULL) {
-					return $appRequest;
-				}
+			if( $gradualRequest !== Null ){
+			        $childrenParams = $gradualRequest->getParams();
+
 			}
 		}
 
 		// use actual route
+		if( $this->parent !== Null ){ // children's play
+			$request = parent::match($httpRequest);
 
-		$request = parent::match($httpRequest);
-
-		if( $request === NULL ){ 
-			return NULL;
-		}
-
-		if( self::$node === Null ){
-			$node = \Nette\Environment::getApplication()->getPresenterLoader()->getNode($request);
-
-			if( empty($node) ){
+			if( $request === NULL ){ // childrens are bored
 				return NULL;
 			}
 
-			$node['route'] = explode('/', $node['route']);
-			self::$node = $node;
+			if( self::$node === Null ){ // seems like daddy's children are having some work to do
+				$node = \Nette\Environment::getApplication()->getPresenterLoader()->getNode($appRequest);
 
-			return $route[array_shift(self::$node['route'])]->match($httpRequest);
+				if( empty($node) ){ // damn! Try next daddy's children, maybe it knows...
+					return NULL;
+				}
+
+				// nice! we have names of every children of children, ... ready to go!
+				$node['routeLeafs'] = explode('/', $node['route']);
+				self::$node = $node;
+
+				// start parsing params from children
+				$childrenParams += $this->getGradual($httpRequest);
+			}
+
+			// we have the load! let's send it to daddy
+			return $childrenParams + $request->getParams();
+
+		} else { // daddy is sending mommy a letter
+			return new PresenterRequest(
+				$appRequest->getPresenterName(), // FUCK TYPES!
+				$httpRequest->getMethod(),
+				$childrenParams,
+				$httpRequest->getPost(),
+				$httpRequest->getFiles(),
+				array('secured' => $httpRequest->isSecured())
+			);
+
 		}
-
-
-		return new PresenterRequest(
-			$node, // FUCK TYPES!
-			$httpRequest->getMethod(),
-			$params,
-			$httpRequest->getPost(),
-			$httpRequest->getFiles(),
-			array('secured' => $httpRequest->isSecured())
-		);
 
 	}
 
@@ -256,7 +289,7 @@ final class ExtendableRouter extends \Nette\Application\Route implements \ArrayA
 
 
 
-	/********************* interfaces ArrayAccess, Countable & IteratorAggregate ****************d*g**/
+	/********************* interfaces ArrayAccess, Countable & IteratorAggregate *********************/
 
 
 
@@ -271,6 +304,11 @@ final class ExtendableRouter extends \Nette\Application\Route implements \ArrayA
 		if (!($route instanceof Nette\Application\IRouter)) {
 			throw new \InvalidArgumentException("Argument must be IRouter descendant.");
 		}
+
+		if( $index === self::DADDY ){
+			throw new \InvalidArgumentException("Name '".self::DADDY."' is reserved!");
+		}
+
 		$this->routes[$index] = $route;
 	}
 
