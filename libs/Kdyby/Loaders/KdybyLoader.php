@@ -21,7 +21,6 @@ final class KdybyLoader extends \Nette\Loaders\AutoLoader
 		'kdyby\addonloader' => "/Loaders/AddonLoader.php",
 		'kdyby\adminpresenter' => '/Presenters/AdminPresenter.php',
 		'kdyby\application\extendablerouter' => '/Application/Routers/ExtendableRouter.php',
-		'kdyby\application\gradualroute' => '/Application/Routers/GradualRoute.php',
 		'kdyby\application\kdyby' => '/Application/Kdyby.php',
 		'kdyby\application\presenterloader' => '/Application/PresenterLoader.php',
 		'kdyby\basepresenter' => '/Presenters/BasePresenter.php',
