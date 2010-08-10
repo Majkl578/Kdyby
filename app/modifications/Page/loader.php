@@ -1,6 +1,6 @@
 <?php
 
-namespace Kdyby\Modifications\Page;
+namespace Kdyby\Modifications\f1r5tk3y3v3r;
 
 
 /**

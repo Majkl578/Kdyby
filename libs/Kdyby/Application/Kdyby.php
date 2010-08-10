@@ -41,9 +41,11 @@ final class Kdyby extends \Nette\Application\Application
 		// sets few default extendable routes
 		$this->onLoad[] = callback($this, 'createDefaultRoutes');
 
+
 		// save new patterns whether becomed avalaible during new modifications loading
 		$this->onShutdown[] = callback($this, 'invalidateRoutes');
 
+		
 		// we can run!
 		$this->hooked = TRUE;
 	}
@@ -65,7 +67,7 @@ final class Kdyby extends \Nette\Application\Application
 	}
 
 
-	public function getLoader()
+	public static function getLoader()
 	{
 		return \Kdyby\KdybyLoader::getInstance();
 	}
@@ -73,7 +75,7 @@ final class Kdyby extends \Nette\Application\Application
 
 	public function hookFillLoader()
 	{
-		$this->getLoader()->loadCache();
+		self::getLoader()->loadCache();
 	}
 
 
@@ -83,6 +85,7 @@ final class Kdyby extends \Nette\Application\Application
 
 		// Nette\Application\IRouter override
 		$locator->addService('Nette\Application\IRouter', 'Kdyby\Application\ExtendableRouter');
+		$locator->addService('Nette\Application\IPresenterLoader', array(__CLASS__, 'createPresenterLoader'));
 
 		// Nette\Security\IAuthenticator
 		//$locator->addService("Nette\Security\IAuthenticator", "");
@@ -99,37 +102,47 @@ final class Kdyby extends \Nette\Application\Application
 	{
 		$router = $this->getRouter();
 
-		if( count($router) >= 4 ){
-			return;
+		if( count($router) >= 5 ){
+//			return;
 		}
 
-		$router->extend('node', '/<node>/<action>', array(
+		$n = $router->extend('node', '/<node>/<action>', array(
 		    'action' => Null
 		));
 
+		$b = $n->extend('blah', '/<blah>');
+		$b->extend('tadyda', '/<tadyda>/<jatata>');
+
 		$router->extend('langNode', '/<language>/<node>/<action>', array(
-		    'language' => 'cz',
+		    'language' => 'cs',
 		    'action' => Null
 		));
 
 		$router->extend('section', '/<section>/<node>/<action>', array(
-		    'language' => 'cz',
+		    'language' => 'cs',
 		    'action' => Null
 		));
 
 		$router->extend('langSection', '/<language>/<section>/<node>/<action>', array(
-		    'language' => 'cz',
+		    'language' => 'cs',
 		    'action' => Null
 		));
 
+		$router->extend('index', '<? (index\.(php|html?))? >', array(
+		    'action' => Null
+		), ExtendableRouter::ONE_WAY | ExtendableRouter::IS_LAST);
+
 		$router->invalidateRoutes();
+
+		//die();
+		//dump($router);
 	}
 
 
 	public static function createPresenterLoader()
 	{
 		// Kdyby\Application\PresenterLoader
-		return new PresenterLoader($this->getLoader(), Environment::getVariable('appDir'));
+		return new PresenterLoader(self::getLoader(), Environment::getVariable('appDir'));
 	}
 
 }

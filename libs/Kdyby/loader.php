@@ -4,6 +4,9 @@ use Nette\Debug;
 use Nette\Environment;
 
 
+require_once LIBS_DIR . '/dump.php';
+
+
 // Step 1: Load Nette Framework
 // this allows load Nette Framework classes automatically so that
 // you don't have to litter your code with 'require' statements
@@ -39,6 +42,8 @@ $locator->addService('Nette\Application\Application', 'Kdyby\Application\Kdyby')
 // 4a) Enable Nette\Debug for better exception and error visualisation
 Debug::enable();
 Debug::$strictMode = True;
+Debug::$maxDepth = 10;
+Debug::$maxLen = 2024;
 
 // 4b) Load configuration from app/config.ini file
 Environment::loadConfig(APP_DIR.'/config.ini');

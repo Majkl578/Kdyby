@@ -15,12 +15,13 @@ use Nette,
  * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Application
  */
-class GradualRoute extends Nette\Object implements Nette\Application\IRouter
+class GradualRoute extends Nette\Object
 {
 	const PRESENTER_KEY = 'presenter';
 
-	/** flag */
+	/** flags */
 	const CASE_SENSITIVE = 256;
+	const IS_LAST = 512;
 
 	/**#@+ @internal uri type */
 	const HOST = 1;
@@ -107,13 +108,22 @@ class GradualRoute extends Nette\Object implements Nette\Application\IRouter
 	}
 
 
+	/**
+	 * @delete 
+	 */
+	public function rebuildMask()
+	{
+		$this->setMask($this->mask, $this->getDefaults);
+	}
+
+
 
 	/**
 	 * Maps HTTP request to a PresenterRequest object.
 	 * @param  Nette\Web\IHttpRequest
 	 * @return PresenterRequest|NULL
 	 */
-	public function match(Nette\Web\IHttpRequest $httpRequest)
+	protected function matchLeaf(Nette\Web\IHttpRequest $httpRequest, &$offset, $isLast = False)
 	{
 		// combine with precedence: mask (params in URL-path), fixity, query, (post,) defaults
 
@@ -138,7 +148,7 @@ class GradualRoute extends Nette\Object implements Nette\Application\IRouter
 			$path = rtrim($path, '/') . '/';
 		}
 
-		if (!$matches = String::match($path, $this->re)) {
+		if (!$matches = String::match($path, $this->getRe($isLast))) {
 			// stop, not matched
 			return NULL;
 		}
@@ -219,128 +229,137 @@ class GradualRoute extends Nette\Object implements Nette\Application\IRouter
 	 * @param  PresenterRequest
 	 * @return string|NULL
 	 */
-	public function constructUrl(PresenterRequest $appRequest, Nette\Web\IHttpRequest $httpRequest)
+//	public function constructUrl(PresenterRequest $appRequest, Nette\Web\IHttpRequest $httpRequest)
+//	{
+//		if ($this->flags & self::ONE_WAY) {
+//			return NULL;
+//		}
+//
+//		$params = $appRequest->getParams();
+//		$metadata = $this->metadata;
+//
+//		$presenter = $appRequest->getPresenterName();
+//		$params[self::PRESENTER_KEY] = $presenter;
+//
+//		if (isset($metadata[self::MODULE_KEY])) { // try split into module and [submodule:]presenter parts
+//			$module = $metadata[self::MODULE_KEY];
+//			if (isset($module['fixity']) && strncasecmp($presenter, $module[self::VALUE] . ':', strlen($module[self::VALUE]) + 1) === 0) {
+//				$a = strlen($module[self::VALUE]);
+//			} else {
+//				$a = strrpos($presenter, ':');
+//			}
+//			if ($a === FALSE) {
+//				$params[self::MODULE_KEY] = '';
+//			} else {
+//				$params[self::MODULE_KEY] = substr($presenter, 0, $a);
+//				$params[self::PRESENTER_KEY] = substr($presenter, $a + 1);
+//			}
+//		}
+//
+//		foreach ($metadata as $name => $meta) {
+//			if (!isset($params[$name])) continue; // retains NULL values
+//
+//			if (isset($meta['fixity'])) {
+//				if (is_scalar($params[$name]) && strcasecmp($params[$name], $meta[self::VALUE]) === 0) {
+//					// remove default values; NULL values are retain
+//					unset($params[$name]);
+//					continue;
+//
+//				} elseif ($meta['fixity'] === self::CONSTANT) {
+//					return NULL; // missing or wrong parameter '$name'
+//				}
+//			}
+//
+//			if (!is_scalar($params[$name])) {
+//
+//			} elseif (isset($meta['filterTable2'][$params[$name]])) {
+//				$params[$name] = $meta['filterTable2'][$params[$name]];
+//
+//			} elseif (isset($meta[self::FILTER_OUT])) {
+//				$params[$name] = call_user_func($meta[self::FILTER_OUT], $params[$name]);
+//			}
+//
+//			if (isset($meta[self::PATTERN]) && !preg_match($meta[self::PATTERN], rawurldecode($params[$name]))) {
+//				return NULL; // pattern not match
+//			}
+//		}
+//
+//		// compositing path
+//		$sequence = $this->sequence;
+//		$brackets = array();
+//		$required = 0;
+//		$uri = '';
+//		$i = count($sequence) - 1;
+//		do {
+//			$uri = $sequence[$i] . $uri;
+//			if ($i === 0) break;
+//			$i--;
+//
+//			$name = $sequence[$i]; $i--; // parameter name
+//
+//			if ($name === ']') { // opening optional part
+//				$brackets[] = $uri;
+//
+//			} elseif ($name[0] === '[') { // closing optional part
+//				$tmp = array_pop($brackets);
+//				if ($required < count($brackets) + 1) { // is this level optional?
+//					if ($name !== '[!') { // and not "required"-optional
+//						$uri = $tmp;
+//					}
+//				} else {
+//					$required = count($brackets);
+//				}
+//
+//			} elseif ($name[0] === '?') { // "foo" parameter
+//				continue;
+//
+//			} elseif (isset($params[$name]) && $params[$name] != '') { // intentionally ==
+//				$required = count($brackets); // make this level required
+//				$uri = $params[$name] . $uri;
+//				unset($params[$name]);
+//
+//			} elseif (isset($metadata[$name]['fixity'])) { // has default value?
+//				$uri = $metadata[$name]['defOut'] . $uri;
+//
+//			} else {
+//				return NULL; // missing parameter '$name'
+//			}
+//		} while (TRUE);
+//
+//
+//		// build query string
+//		if ($this->xlat) {
+//			$params = self::renameKeys($params, $this->xlat);
+//		}
+//
+//		$sep = ini_get('arg_separator.input');
+//		$query = http_build_query($params, '', $sep ? $sep[0] : '&');
+//		if ($query != '') $uri .= '?' . $query; // intentionally ==
+//
+//		// absolutize path
+//		if ($this->type === self::RELATIVE) {
+//			$uri = '//' . $httpRequest->getUri()->getAuthority() . $httpRequest->getUri()->getBasePath() . $uri;
+//
+//		} elseif ($this->type === self::PATH) {
+//			$uri = '//' . $httpRequest->getUri()->getAuthority() . $uri;
+//		}
+//
+//		if (strpos($uri, '//', 2) !== FALSE) {
+//			return NULL; // TODO: implement counterpart in match() ?
+//		}
+//
+//		$uri = ($this->flags & self::SECURED ? 'https:' : 'http:') . $uri;
+//
+//		return $uri;
+//	}
+
+
+	protected function getRe($isLast = False)
 	{
-		if ($this->flags & self::ONE_WAY) {
-			return NULL;
-		}
-
-		$params = $appRequest->getParams();
-		$metadata = $this->metadata;
-
-		$presenter = $appRequest->getPresenterName();
-		$params[self::PRESENTER_KEY] = $presenter;
-
-		if (isset($metadata[self::MODULE_KEY])) { // try split into module and [submodule:]presenter parts
-			$module = $metadata[self::MODULE_KEY];
-			if (isset($module['fixity']) && strncasecmp($presenter, $module[self::VALUE] . ':', strlen($module[self::VALUE]) + 1) === 0) {
-				$a = strlen($module[self::VALUE]);
-			} else {
-				$a = strrpos($presenter, ':');
-			}
-			if ($a === FALSE) {
-				$params[self::MODULE_KEY] = '';
-			} else {
-				$params[self::MODULE_KEY] = substr($presenter, 0, $a);
-				$params[self::PRESENTER_KEY] = substr($presenter, $a + 1);
-			}
-		}
-
-		foreach ($metadata as $name => $meta) {
-			if (!isset($params[$name])) continue; // retains NULL values
-
-			if (isset($meta['fixity'])) {
-				if (is_scalar($params[$name]) && strcasecmp($params[$name], $meta[self::VALUE]) === 0) {
-					// remove default values; NULL values are retain
-					unset($params[$name]);
-					continue;
-
-				} elseif ($meta['fixity'] === self::CONSTANT) {
-					return NULL; // missing or wrong parameter '$name'
-				}
-			}
-
-			if (!is_scalar($params[$name])) {
-
-			} elseif (isset($meta['filterTable2'][$params[$name]])) {
-				$params[$name] = $meta['filterTable2'][$params[$name]];
-
-			} elseif (isset($meta[self::FILTER_OUT])) {
-				$params[$name] = call_user_func($meta[self::FILTER_OUT], $params[$name]);
-			}
-
-			if (isset($meta[self::PATTERN]) && !preg_match($meta[self::PATTERN], rawurldecode($params[$name]))) {
-				return NULL; // pattern not match
-			}
-		}
-
-		// compositing path
-		$sequence = $this->sequence;
-		$brackets = array();
-		$required = 0;
-		$uri = '';
-		$i = count($sequence) - 1;
-		do {
-			$uri = $sequence[$i] . $uri;
-			if ($i === 0) break;
-			$i--;
-
-			$name = $sequence[$i]; $i--; // parameter name
-
-			if ($name === ']') { // opening optional part
-				$brackets[] = $uri;
-
-			} elseif ($name[0] === '[') { // closing optional part
-				$tmp = array_pop($brackets);
-				if ($required < count($brackets) + 1) { // is this level optional?
-					if ($name !== '[!') { // and not "required"-optional
-						$uri = $tmp;
-					}
-				} else {
-					$required = count($brackets);
-				}
-
-			} elseif ($name[0] === '?') { // "foo" parameter
-				continue;
-
-			} elseif (isset($params[$name]) && $params[$name] != '') { // intentionally ==
-				$required = count($brackets); // make this level required
-				$uri = $params[$name] . $uri;
-				unset($params[$name]);
-
-			} elseif (isset($metadata[$name]['fixity'])) { // has default value?
-				$uri = $metadata[$name]['defOut'] . $uri;
-
-			} else {
-				return NULL; // missing parameter '$name'
-			}
-		} while (TRUE);
-
-
-		// build query string
-		if ($this->xlat) {
-			$params = self::renameKeys($params, $this->xlat);
-		}
-
-		$sep = ini_get('arg_separator.input');
-		$query = http_build_query($params, '', $sep ? $sep[0] : '&');
-		if ($query != '') $uri .= '?' . $query; // intentionally ==
-
-		// absolutize path
-		if ($this->type === self::RELATIVE) {
-			$uri = '//' . $httpRequest->getUri()->getAuthority() . $httpRequest->getUri()->getBasePath() . $uri;
-
-		} elseif ($this->type === self::PATH) {
-			$uri = '//' . $httpRequest->getUri()->getAuthority() . $uri;
-		}
-
-		if (strpos($uri, '//', 2) !== FALSE) {
-			return NULL; // TODO: implement counterpart in match() ?
-		}
-
-		$uri = ($this->flags & self::SECURED ? 'https:' : 'http:') . $uri;
-
-		return $uri;
+		return
+		    '~' . // begin
+		    $this->re . '/?' . ($isLast OR ($this->flags & self::IS_LAST) ? '$' : '') . // re
+		    '~A' . ($this->flags & self::CASE_SENSITIVE ? '' : 'iu'); // end
 	}
 
 
@@ -351,7 +370,7 @@ class GradualRoute extends Nette\Object implements Nette\Application\IRouter
 	 * @param  array
 	 * @return void
 	 */
-	private function setMask($mask, array $metadata)
+	protected function setMask($mask, array $metadata)
 	{
 		$this->mask = $mask;
 
@@ -519,7 +538,7 @@ class GradualRoute extends Nette\Object implements Nette\Application\IRouter
 			throw new \InvalidArgumentException("Missing closing ']' in mask '$mask'.");
 		}
 
-		$this->re = '#' . $re . '/?$#A' . ($this->flags & self::CASE_SENSITIVE ? '' : 'iu');
+		$this->re = $re; // get re using $this->getRe(); !
 		$this->metadata = $metadata;
 		$this->sequence = $sequence;
 	}

@@ -8,7 +8,7 @@ Complex but simple Framework - Content Managing System Kdyby
 Installing
 ----------
 
-Make directories 'temp' and 'app' writable.
+Make directory 'temp' writable and optionaly 'app' too.
 Run 'document_root/index.php'
 
 

@@ -44,13 +44,21 @@ class PresenterLoader extends \Nette\Object implements \Nette\Application\IPrese
 
 	/**
 	 *
-	 * @param Nette\Application\PresenterRequest $request
+	 * @param string $params
 	 * @return \DibiRow
 	 */
-	public function getNode(PresenterRequest $request = Null)
+	public function getNode($params = Null)
 	{
-		if( self::$node == Null OR $request !== Null ){
-			$params = $request->getParams();
+		return array(
+			'presenter' => "f1r5tk3y3v3r:Page",
+			'route' => 'node~blah~tadyda',
+			'allowedActions' => "",
+			'defaultAction' => "",
+			'layout' => "",
+			'template' => "",
+		    );
+
+		if( self::$node == Null OR $params !== Null ){
 			self::$node = dibi::fetch(
 				'SELECT * FROM %n', $this->table,
 				'WHERE %n = %s', 'id', $params['id']
@@ -106,45 +114,6 @@ class PresenterLoader extends \Nette\Object implements \Nette\Application\IPrese
 		}
 
 		return $class;
-	}
-
-
-
-	/**
-	 * Formats presenter class name from its name.
-	 * @param  string
-	 * @return string
-	 */
-	public function formatPresenterClass($presenter)
-	{
-		/*5.2*return strtr($presenter, ':', '_') . 'Presenter';*/
-		return str_replace(':', 'Modification\\', $presenter) . 'Presenter';
-	}
-
-
-
-	/**
-	 * Formats presenter name from class name.
-	 * @param  string
-	 * @return string
-	 */
-	public function unformatPresenterClass($class)
-	{
-		/*5.2*return strtr(substr($class, 0, -9), '_', ':');*/
-		return str_replace('Modification\\', ':', substr($class, 0, -9));
-	}
-
-
-
-	/**
-	 * Formats presenter class file name.
-	 * @param  string
-	 * @return string
-	 */
-	public function formatPresenterFile($presenter)
-	{
-		$path = '/' . str_replace(':', 'Module/', $presenter);
-		return $this->baseDir . substr_replace($path, '/presenters', strrpos($path, '/'), 0) . 'Presenter.php';
 	}
 
 }
